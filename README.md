@@ -43,11 +43,13 @@
 
 4.  **Подготовить базу данных PostgreSQL:**
 
-    Убедиться, что PostgreSQL установлен и запущен. Зайти в консоль `psql` и создать базу данных:
+    Убедиться, что PostgreSQL установлен и запущен. Зайти в консоль `psql`:
 
     ```bash
     psql -U postgres postgres
     ```
+
+    и создать базу данных:
 
     ```sql
     CREATE DATABASE library;
