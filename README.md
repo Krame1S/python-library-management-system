@@ -45,6 +45,10 @@
 
     Убедиться, что PostgreSQL установлен и запущен. Зайти в консоль `psql` и создать базу данных:
 
+    ```bash
+    psql -U postgres postgres
+    ```
+
     ```sql
     CREATE DATABASE library;
     ```
@@ -58,7 +62,7 @@
     ```
 
     Открыть файл `.env` и изменить параметры подключения (`DB_USER`, `DB_PASSWORD`, `DB_NAME` и т.д.) на актуальные данные вашей PostgreSQL базы данных.
-    
+
 6.  **Запустить приложение:**
     ```bash
     python run.py
