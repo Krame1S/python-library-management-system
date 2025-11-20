@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация</title>
+</head>
+<body>
+    <h1>Регистрация</h1>
+    
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/login">Вход</a> |
+        <a href="/register">Регистрация</a>
+    </nav>
+    
+    <hr>
+    
+    <form method="POST" action="/register">
+        <label>Email:</label><br>
+        <input type="email" name="email" required><br><br>
+        
+        <label>ФИО:</label><br>
+        <input type="text" name="full_name" required><br><br>
+        
+        <label>Пароль:</label><br>
+        <input type="password" name="password" required><br><br>
+        
+        <label>Подтвердите пароль:</label><br>
+        <input type="password" name="password_confirm" required><br><br>
+        
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+    
+    <hr>
+    
+    <p>Уже есть аккаунт? <a href="/login">Войти</a></p>
+    
+    {{ error|safe }}
+</body>
+</html>

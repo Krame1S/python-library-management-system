@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Выдать книгу</title>
+</head>
+<body>
+    <h1>Выдать книгу</h1>
+
+    {{ navigation|safe }}
+
+    <hr>
+
+    <h2>Информация о книге</h2>
+    <p><strong>Название:</strong> {{ book_title }}</p>
+    <p><strong>ISBN:</strong> {{ book_isbn }}</p>
+    <p><strong>Доступно:</strong> {{ book_copies }}</p>
+
+    <hr>
+
+    <h2>Найти читателя</h2>
+    <form method="POST" action="/issue-book/{{ book_isbn }}">
+        <label>Email или номер читательского билета:</label><br>
+        <input type="text" name="user_identifier" required><br><br>
+        <button type="submit">Выдать книгу</button>
+    </form>
+    
+    {{ user_reservations_table|safe }}
+
+    <hr>
+
+    <h2>Или зарегистрировать нового читателя</h2>
+    <form method="POST" action="/register-user-for-issue">
+        <input type="hidden" name="isbn" value="{{ book_isbn }}">
+        <label>ФИО:</label><br>
+        <input type="text" name="full_name" required><br><br>
+        <label>Email:</label><br>
+        <input type="email" name="email" required><br><br>
+        <button type="submit">Зарегистрировать и выдать книгу</button>
+    </form>
+    <p>Пароль не требуется. Пользователь сможет восстановить доступ по email позже.</p>
+
+    {{ error|safe }}
+</body>
+</html>

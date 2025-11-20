@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Редактирование книги</title>
+</head>
+<body>
+    <h1>Редактирование книги</h1>
+    
+    {{ navigation|safe }}
+    
+    <hr>
+    
+    <h2>Изменить книгу: {{ book_title }}</h2>
+    <form method="POST" action="/update-book">
+        <input type="hidden" name="isbn" value="{{ book_isbn }}">
+        
+        <label>ISBN:</label><br>
+        <input type="text" value="{{ book_isbn }}" disabled><br><br>
+        
+        <label>Название (макс. 30 символов):</label><br>
+        <input type="text" name="title" value="{{ book_title }}" maxlength="30" required><br><br>
+        
+        <label>Количество экземпляров:</label><br>
+        <input type="number" name="copies" value="{{ book_copies }}" min="0" required><br><br>
+        
+        <label>Авторы (через запятую):</label><br>
+        <input type="text" name="authors" value="{{ book_authors }}"><br><br>
+        
+        <label>Жанры (через запятую):</label><br>
+        <input type="text" name="genres" value="{{ book_genres }}"><br><br>
+        
+        <button type="submit">Сохранить</button>
+        <a href="/library"><button type="button">Отмена</button></a>
+    </form>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Выдать книгу</title>
+</head>
+<body>
+    <h1>Выдать книгу</h1>
+    
+    {{ navigation|safe }}
+    
+    <hr>
+    
+    <h2>Поиск книги</h2>
+    <form method="GET" action="/issue-book">
+        <label>Поиск по названию, автору или ISBN:</label><br>
+        <input type="text" name="query" value="{{ query }}" size="50">
+        <button type="submit">Искать</button>
+    </form>
+    
+    <hr>
+    
+    {{ books_table|safe }}
+</body>
+</html>

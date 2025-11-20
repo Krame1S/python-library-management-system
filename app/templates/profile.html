@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Личный кабинет</title>
+</head>
+<body>
+    <h1>Личный кабинет</h1>
+    
+    {{ navigation|safe }}
+    
+    <hr>
+    
+    <h2>Информация о пользователе</h2>
+    <p><strong>Имя:</strong> {{ user_name }}</p>
+    <p><strong>Email:</strong> {{ user_email }}</p>
+    {{ user_ticket_html|safe }}
+    <p><strong>Дата регистрации:</strong> {{ user_created }}</p>
+    
+    <hr>
+    
+    <h2>Мои активные бронирования</h2>
+    {{ active_borrows_table|safe }}
+    
+    <hr>
+    
+    <h2>История возвратов</h2>
+    {{ history_table|safe }}
+    
+    {{ message|safe }}
+    {{ error|safe }}
+</body>
+</html>

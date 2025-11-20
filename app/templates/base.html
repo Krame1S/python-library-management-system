@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Библиотека{% endblock %}</title>
+</head>
+<body>
+    <h1>{% block heading %}Библиотечная система{% endblock %}</h1>
+    
+    <nav>
+        <a href="/">Главная</a> |
+        {% if is_authenticated %}
+            {% if is_admin %}
+                <a href="/library">Библиотека</a> |
+                <a href="/add-book">Добавить</a> |
+                <a href="/issue-book">Выдать</a> |
+                <a href="/reserve-book">Забронировать</a> |
+                <a href="/management">Управление</a> |
+            {% else %}
+                <a href="/library">Библиотека</a> |
+                <a href="/profile">Мой кабинет</a> |
+            {% endif %}
+            <a href="/logout">Выйти{% if user_name %} ({{ user_name }}){% endif %}</a>
+        {% else %}
+            <a href="/login">Войти</a> |
+            <a href="/register">Регистрация</a>
+        {% endif %}
+    </nav>
+    
+    <hr>
+    
+    {% block content %}{% endblock %}
+    
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+    
+    {% if error %}
+        <p>Ошибка: {{ error }}</p>
+    {% endif %}
+</body>
+</html>

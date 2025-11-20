@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Библиотека{% endblock %}</title>
+</head>
+<body>
+    <h1>{% block heading %}Библиотечная система{% endblock %}</h1>
+    
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/profile">Мой кабинет</a> |
+        <a href="/logout">Выйти ({{ user_name }})</a>
+    </nav>
+    
+    <hr>
+    
+    {% block content %}{% endblock %}
+    
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+    
+    {% if error %}
+        <p>Ошибка: {{ error }}</p>
+    {% endif %}
+</body>
+</html>

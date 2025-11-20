@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Библиотека</title>
+</head>
+<body>
+    <h1>Библиотека</h1>
+    
+    {{ navigation|safe }}
+    
+    <hr>
+    
+    <h2>Все книги в библиотеке ({{ total_books }})</h2>
+    
+    <h3>Поиск и фильтры</h3>
+    <form method="GET" action="/library">
+        <label>Поиск по названию, автору или ISBN:</label><br>
+        <input type="text" name="query" value="{{ query }}" size="50" placeholder="Название, автор или ISBN...">
+        
+        <label>&nbsp;&nbsp;&nbsp;Статус:</label>
+        <select name="status">
+            {{ status_options|safe }}
+        </select>
+        
+        <button type="submit">Поиск</button>
+        <a href="/library"><button type="button">Сбросить</button></a>
+    </form>
+    
+    <hr>
+    
+    <p><strong>Результат:</strong> {{ result_count }} книг</p>
+    <p><strong>В наличии:</strong> {{ available_books }} / {{ total_books }} книг</p>
+    
+    {{ books_table|safe }}
+    
+    {{ message|safe }}
+    {{ error|safe }}
+</body>
+</html>

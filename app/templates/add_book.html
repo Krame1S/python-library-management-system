@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Добавить книгу</title>
+</head>
+<body>
+    <h1>Добавить книгу в библиотеку</h1>
+    
+    {{ navigation|safe }}
+    
+    <hr>
+    
+    <h2>Поиск книг в Google Books</h2>
+    <form method="GET" action="/add-book">
+        <label>Введите название, автора или ISBN:</label><br>
+        <input type="text" name="query" value="{{ query }}" size="50">
+        <button type="submit">Найти в Google Books</button>
+    </form>
+    
+    <hr>
+    
+    {{ google_books_results|safe }}
+    
+    <hr>
+    
+    <h2>Добавить книгу вручную</h2>
+    <form method="POST" action="/add-book">
+        <label>ISBN (13 цифр):</label><br>
+        <input type="text" name="isbn" required><br><br>
+
+        <label>Название (макс. 30 символов):</label><br>
+        <input type="text" name="title" maxlength="30" required><br><br>
+
+        <label>Количество экземпляров:</label><br>
+        <input type="number" name="copies" value="1" min="1" required><br><br>
+
+        <label>Авторы (через запятую):</label><br>
+        <input type="text" name="authors"><br><br>
+
+        <label>Жанры (через запятую):</label><br>
+        <input type="text" name="genres"><br><br>
+
+        <button type="submit">Добавить книгу</button>
+    </form>
+    
+    {{ error|safe }}
+    {{ message|safe }}
+</body>
+</html>

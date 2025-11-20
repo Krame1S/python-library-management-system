@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>История и управление</title>
+</head>
+<body>
+    <h1>История и управление записями</h1>
+    
+    {{ navigation|safe }}
+    
+    <hr>
+    
+    <h2>Фильтры</h2>
+    <form method="GET" action="/management">
+        <label>Email пользователя:</label><br>
+        <input type="text" name="user_email" value="{{ user_email }}" size="40"><br><br>
+        
+        <label>Номер читательского билета:</label><br>
+        <input type="text" name="user_ticket" value="{{ user_ticket }}" size="20"><br><br>
+        
+        <label>Статус:</label><br>
+        <select name="status">
+            {{ status_options|safe }}
+        </select><br><br>
+        
+        <button type="submit">Фильтровать</button>
+        <a href="/management"><button type="button">Сбросить</button></a>
+    </form>
+    
+    <hr>
+    
+    <h2>Записи ({{ records_count }} всего)</h2>
+    
+    {{ records_table|safe }}
+    
+    {{ message|safe }}
+    {{ error|safe }}
+</body>
+</html>
