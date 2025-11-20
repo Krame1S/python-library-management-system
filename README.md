@@ -43,12 +43,10 @@
 
 4.  **Подготовить базу данных PostgreSQL:**
 
-    Убедиться, что PostgreSQL установлен и запущен. Зайти в консоль `psql` и создать базу данных и пользователя:
+    Убедиться, что PostgreSQL установлен и запущен. Зайти в консоль `psql` и создать базу данных:
 
     ```sql
     CREATE DATABASE library;
-    CREATE USER postgres WITH PASSWORD 'postgres'; -- Или используйте своего пользователя
-    GRANT ALL PRIVILEGES ON DATABASE library TO postgres;
     ```
 
 5.  **Настроить конфигурацию (Обязательно):**
