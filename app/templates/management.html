@@ -7,7 +7,15 @@
 <body>
     <h1>История и управление записями</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/add-book">Добавить</a> |
+        <a href="/issue-book">Выдать</a> |
+        <a href="/reserve-book">Забронировать</a> |
+        <a href="/management">Управление</a> |
+        <a href="/logout">Выйти</a>
+    </nav>
     
     <hr>
     
@@ -21,7 +29,11 @@
         
         <label>Статус:</label><br>
         <select name="status">
-            {{ status_options|safe }}
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Все статусы</option>
+            <option value="reserved" {% if status_filter == 'reserved' %}selected{% endif %}>Зарезервированные</option>
+            <option value="issued" {% if status_filter == 'issued' %}selected{% endif %}>Выданные</option>
+            <option value="returned" {% if status_filter == 'returned' %}selected{% endif %}>Возвращённые</option>
+            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Отменённые</option>
         </select><br><br>
         
         <button type="submit">Фильтровать</button>
@@ -30,11 +42,84 @@
     
     <hr>
     
-    <h2>Записи ({{ records_count }} всего)</h2>
+    <h2>Записи ({{ records|length }} всего)</h2>
     
-    {{ records_table|safe }}
+    {% if records %}
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Книга</th>
+                <th>ISBN</th>
+                <th>Читатель</th>
+                <th>Email / Билет</th>
+                <th>Дата брони</th>
+                <th>Истекает</th>
+                <th>Дата выдачи</th>
+                <th>Дата возврата</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr style="background-color: {% if record.status == 'reserved' %}#fffde7{% elif record.status == 'issued' %}#e8f5e9{% elif record.status == 'cancelled' %}#ffebee{% else %}#f5f5f5{% endif %}">
+                <td>{{ record.book_title }}</td>
+                <td>{{ record.book_isbn }}</td>
+                <td>{{ record.user_full_name }}</td>
+                <td>
+                    {{ record.user_email }}<br>
+                    <small>{{ record.user_ticket if record.user_ticket else '-' }}</small>
+                </td>
+                <td>{{ record.borrow_date }}</td>
+                <td>{{ record.reservation_expiry if record.reservation_expiry else '-' }}</td>
+                <td>{{ record.issue_date if record.issue_date else '-' }}</td>
+                <td>{{ record.return_date if record.return_date else '-' }}</td>
+                <td>
+                    {% if record.status == 'reserved' %}<strong>Зарезервирована</strong>
+                    {% elif record.status == 'issued' %}<strong>Выдана</strong>
+                    {% elif record.status == 'returned' %}Возвращена
+                    {% elif record.status == 'cancelled' %}Отменена
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.status == 'reserved' %}
+                        <form method="POST" action="/issue-book-from-reservation" style="display: inline;">
+                            <input type="hidden" name="record_id" value="{{ record.id }}">
+                            <button type="submit">Выдать</button>
+                        </form>
+                        <form method="POST" action="/cancel-reservation" style="display: inline;">
+                            <input type="hidden" name="record_id" value="{{ record.id }}">
+                            <button type="submit" onclick="return confirm('Отменить резервацию?')">Отменить</button>
+                        </form>
+                    {% elif record.status == 'issued' %}
+                        <form method="POST" action="/mark-returned" style="display: inline;">
+                            <input type="hidden" name="record_id" value="{{ record.id }}">
+                            <input type="date" name="return_date" required>
+                            <button type="submit">Вернула</button>
+                        </form>
+                        <form method="POST" action="/cancel-issued" style="display: inline;">
+                            <input type="hidden" name="record_id" value="{{ record.id }}">
+                            <button type="submit" onclick="return confirm('Отменить выдачу и вернуть книгу?')">Отменить</button>
+                        </form>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Записи не найдены.</p>
+    {% endif %}
     
-    {{ message|safe }}
-    {{ error|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>

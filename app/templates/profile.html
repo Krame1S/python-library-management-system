@@ -7,27 +7,114 @@
 <body>
     <h1>Личный кабинет</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/profile">Мой кабинет</a> |
+        <a href="/logout">Выйти</a>
+    </nav>
     
     <hr>
     
     <h2>Информация о пользователе</h2>
-    <p><strong>Имя:</strong> {{ user_name }}</p>
-    <p><strong>Email:</strong> {{ user_email }}</p>
-    {{ user_ticket_html|safe }}
-    <p><strong>Дата регистрации:</strong> {{ user_created }}</p>
+    <p><strong>Имя:</strong> {{ current_user.full_name }}</p>
+    <p><strong>Email:</strong> {{ current_user.email }}</p>
+    {% if current_user.ticket_number %}
+        <p><strong>Номер читательского билета:</strong> {{ current_user.ticket_number }}</p>
+    {% endif %}
+    <p><strong>Дата регистрации:</strong> {{ current_user.created_at }}</p>
     
     <hr>
     
     <h2>Мои активные бронирования</h2>
-    {{ active_borrows_table|safe }}
+    {% if active_borrows %}
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Книга</th>
+                <th>ISBN</th>
+                <th>Статус</th>
+                <th>Дата</th>
+                <th>Истекает</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in active_borrows %}
+            <tr>
+                <td>{{ record.book_title }}</td>
+                <td>{{ record.book_isbn }}</td>
+                <td>
+                    {% if record.status == 'reserved' %}
+                        Зарезервирована
+                    {% elif record.status == 'issued' %}
+                        Выдана
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.status == 'reserved' %}
+                        {{ record.borrow_date }}
+                    {% elif record.status == 'issued' %}
+                        {{ record.issue_date }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.status == 'reserved' %}
+                        {{ record.reservation_expiry }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.status == 'issued' %}
+                        Отдать администратору
+                    {% else %}
+                        Ожидает выдачи
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>У вас нет активных бронирований.</p>
+    {% endif %}
     
     <hr>
     
     <h2>История возвратов</h2>
-    {{ history_table|safe }}
+    {% if history %}
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Книга</th>
+                <th>ISBN</th>
+                <th>Взята</th>
+                <th>Возвращена</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in history %}
+            <tr>
+                <td>{{ record.book_title }}</td>
+                <td>{{ record.book_isbn }}</td>
+                <td>{{ record.borrow_date }}</td>
+                <td>{{ record.return_date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>История пуста.</p>
+    {% endif %}
     
-    {{ message|safe }}
-    {{ error|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>

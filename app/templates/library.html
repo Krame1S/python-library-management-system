@@ -7,7 +7,20 @@
 <body>
     <h1>Библиотека</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        {% if current_user.is_admin() %}
+            <a href="/library">Библиотека</a> |
+            <a href="/add-book">Добавить</a> |
+            <a href="/issue-book">Выдать</a> |
+            <a href="/reserve-book">Забронировать</a> |
+            <a href="/management">Управление</a> |
+        {% else %}
+            <a href="/library">Библиотека</a> |
+            <a href="/profile">Мой кабинет</a> |
+        {% endif %}
+        <a href="/logout">Выйти</a>
+    </nav>
     
     <hr>
     
@@ -20,7 +33,9 @@
         
         <label>&nbsp;&nbsp;&nbsp;Статус:</label>
         <select name="status">
-            {{ status_options|safe }}
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Все книги</option>
+            <option value="available" {% if status_filter == 'available' %}selected{% endif %}>В наличии</option>
+            <option value="unavailable" {% if status_filter == 'unavailable' %}selected{% endif %}>Нет в наличии</option>
         </select>
         
         <button type="submit">Поиск</button>
@@ -32,9 +47,65 @@
     <p><strong>Результат:</strong> {{ result_count }} книг</p>
     <p><strong>В наличии:</strong> {{ available_books }} / {{ total_books }} книг</p>
     
-    {{ books_table|safe }}
+    {% if books %}
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>ISBN</th>
+                <th>Авторы</th>
+                <th>Жанры</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in books %}
+            <tr>
+                <td><strong>{{ book.title }}</strong></td>
+                <td>{{ book.isbn }}</td>
+                <td>{{ book.authors|join(', ') if book.authors else '-' }}</td>
+                <td>{{ book.genres|join(', ') if book.genres else '-' }}</td>
+                <td>
+                    {% if book.copies > 0 %}
+                        ✓ В наличии ({{ book.copies }})
+                    {% else %}
+                        ✗ Нет в наличии
+                    {% endif %}
+                </td>
+                <td>
+                    {% if current_user.is_admin() %}
+                        <a href="/edit-book/{{ book.isbn }}">Изменить</a> | 
+                        <form method="POST" action="/delete-book" style="display: inline;">
+                            <input type="hidden" name="isbn" value="{{ book.isbn }}">
+                            <button type="submit" onclick="return confirm('Вы уверены?')">Удалить</button>
+                        </form>
+                    {% else %}
+                        {% if book.copies > 0 %}
+                            <form method="POST" action="/reserve-book-user" style="display: inline;">
+                                <input type="hidden" name="isbn" value="{{ book.isbn }}">
+                                <button type="submit">Забронировать</button>
+                            </form>
+                        {% else %}
+                            —
+                        {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Книги не найдены.</p>
+    {% endif %}
     
-    {{ message|safe }}
-    {{ error|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>

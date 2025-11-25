@@ -7,19 +7,63 @@
 <body>
     <h1>Забронировать книгу</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/add-book">Добавить</a> |
+        <a href="/issue-book">Выдать</a> |
+        <a href="/reserve-book">Забронировать</a> |
+        <a href="/management">Управление</a> |
+        <a href="/logout">Выйти</a>
+    </nav>
     
     <hr>
     
     <h2>Поиск книги</h2>
     <form method="GET" action="/reserve-book">
-        <label>Поиск по названию, автору или ISBN:</label><br>
+        <label>Название, автор или ISBN:</label><br>
         <input type="text" name="query" value="{{ query }}" size="50">
-        <button type="submit">Искать</button>
+        <button type="submit">Найти</button>
     </form>
     
     <hr>
     
-    {{ books_table|safe }}
+    {% if books %}
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>ISBN</th>
+                <th>Авторы</th>
+                <th>Доступно</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in books %}
+            <tr>
+                <td><strong>{{ book.title }}</strong></td>
+                <td>{{ book.isbn }}</td>
+                <td>{{ book.authors|join(', ') }}</td>
+                <td>{{ book.copies }}</td>
+                <td>
+                    <a href="/reserve-book/{{ book.isbn }}"><button>Выбрать</button></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif query %}
+        <p>Книги не найдены.</p>
+    {% endif %}
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>

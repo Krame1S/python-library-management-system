@@ -2,18 +2,64 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Главная</title>
+    <title>Библиотечная система</title>
 </head>
 <body>
     <h1>Библиотечная система управления</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        {% if current_user.is_authenticated %}
+            {% if current_user.is_admin() %}
+                <a href="/library">Библиотека</a> |
+                <a href="/add-book">Добавить</a> |
+                <a href="/issue-book">Выдать</a> |
+                <a href="/reserve-book">Забронировать</a> |
+                <a href="/management">Управление</a> |
+            {% else %}
+                <a href="/library">Библиотека</a> |
+                <a href="/profile">Мой кабинет</a> |
+            {% endif %}
+            <a href="/logout">Выйти ({{ current_user.full_name }})</a>
+        {% else %}
+            <a href="/login">Войти</a> |
+            <a href="/register">Регистрация</a>
+        {% endif %}
+    </nav>
     
     <hr>
     
-    {{ content|safe }}
+    {% if current_user.is_authenticated %}
+        <h2>Добро пожаловать, {{ current_user.full_name }}!</h2>
+        
+        {% if current_user.is_admin() %}
+            <h3>Административная панель</h3>
+            <ul>
+                <li><a href="/library">Просмотреть все книги в библиотеке</a></li>
+                <li><a href="/add-book">Добавить книгу в каталог</a></li>
+                <li><a href="/issue-book">Выдать книгу читателю</a></li>
+                <li><a href="/reserve-book">Забронировать книгу</a></li>
+                <li><a href="/management">Управление записями</a></li>
+            </ul>
+        {% else %}
+            <h3>Мои действия</h3>
+            <ul>
+                <li><a href="/library">Библиотека</a></li>
+                <li><a href="/profile">Мой кабинет</a></li>
+            </ul>
+        {% endif %}
+    {% else %}
+        <h2>Добро пожаловать в библиотечную систему</h2>
+        <p>Для работы с системой необходимо <a href="/login">войти</a> или <a href="/register">зарегистрироваться</a></p>
+    {% endif %}
     
-    {{ message|safe }}
-    {{ error|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>

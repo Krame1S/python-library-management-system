@@ -7,7 +7,13 @@
 <body>
     <h1>Поиск в библиотеке</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/search">Поиск</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/profile">Мой кабинет</a> |
+        <a href="/logout">Выйти</a>
+    </nav>
     
     <hr>
     
@@ -20,9 +26,50 @@
     
     <hr>
     
-    {{ search_results|safe }}
+    {% if books %}
+        <h2>Результаты поиска ({{ books|length }} книг)</h2>
+        
+        {% for book in books %}
+            <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+                <h3>{{ book.title }}</h3>
+                <p><strong>ISBN:</strong> {{ book.isbn }}</p>
+                
+                {% if book.authors %}
+                    <p><strong>Авторы:</strong> {{ book.authors|join(', ') }}</p>
+                {% endif %}
+                
+                {% if book.genres %}
+                    <p><strong>Жанры:</strong> {{ book.genres|join(', ') }}</p>
+                {% endif %}
+                
+                <p><strong>Статус:</strong>
+                    {% if book.copies > 0 %}
+                        В наличии ({{ book.copies }} экз.)
+                    {% else %}
+                        Нет в наличии
+                    {% endif %}
+                </p>
+
+                {% if book.copies > 0 %}
+                    <form method="POST" action="/reserve-book-user" style="display: inline;">
+                        <input type="hidden" name="isbn" value="{{ book.isbn }}">
+                        <button type="submit">Забронировать</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+    {% elif query %}
+        <p>Книги не найдены по запросу "{{ query }}"</p>
+    {% endif %}
     
-    {{ error|safe }}
-    {{ message|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>

@@ -7,7 +7,15 @@
 <body>
     <h1>Добавить книгу в библиотеку</h1>
     
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/add-book">Добавить</a> |
+        <a href="/issue-book">Выдать</a> |
+        <a href="/reserve-book">Забронировать</a> |
+        <a href="/management">Управление</a> |
+        <a href="/logout">Выйти</a>
+    </nav>
     
     <hr>
     
@@ -20,7 +28,49 @@
     
     <hr>
     
-    {{ google_books_results|safe }}
+    {% if google_books %}
+        <h2>Результаты поиска ({{ google_books|length }} книг)</h2>
+        
+        {% for book in google_books %}
+            <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+                <h3>{{ book.title }}</h3>
+                <p><strong>ISBN:</strong> {{ book.isbn }}</p>
+                
+                {% if book.authors %}
+                    <p><strong>Авторы:</strong> {{ book.authors|join(', ') }}</p>
+                {% endif %}
+                
+                {% if book.categories %}
+                    <p><strong>Категории:</strong> {{ book.categories|join(', ') }}</p>
+                {% endif %}
+                
+                <p><strong>Издатель:</strong> {{ book.publisher }}</p>
+                <p><strong>Дата публикации:</strong> {{ book.published_date }}</p>
+                
+                {% if book.page_count %}
+                    <p><strong>Страниц:</strong> {{ book.page_count }}</p>
+                {% endif %}
+                
+                {% if book.description %}
+                    <p>{{ book.description }}</p>
+                {% endif %}
+
+                {% if book.isbn != 'N/A' %}
+                    <form method="POST" action="/import-book" style="display: inline;">
+                        <input type="hidden" name="isbn" value="{{ book.isbn }}">
+                        <label>Количество копий:</label>
+                        <input type="number" name="copies" value="1" min="1" max="100" size="3">
+                        <button type="submit">Добавить в библиотеку</button>
+                    </form>
+                {% else %}
+                    <p><strong>ISBN отсутствует</strong> — невозможно добавить</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+    {% elif query %}
+        <p>Книги не найдены по запросу "{{ query }}"</p>
+    {% endif %}
     
     <hr>
     
@@ -44,7 +94,13 @@
         <button type="submit">Добавить книгу</button>
     </form>
     
-    {{ error|safe }}
-    {{ message|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>
