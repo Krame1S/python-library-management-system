@@ -1,8 +1,8 @@
-from flask import jsonify, request, render_template, redirect, url_for
+from flask import jsonify, request, render_template, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from functools import wraps
 from app.models import db, User
-from app.services import library_service, google_books_service, user_service, presentation_service
+from app.services import library_service, google_books_service, user_service
 
 def admin_required(f):
     @wraps(f)
@@ -12,17 +12,18 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def admin_api_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin():
+            return jsonify({'error': 'Forbidden: Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
 def register_routes(app):
     @app.route('/')
     def index():
-        is_authenticated = current_user.is_authenticated
-        is_admin = current_user.is_admin() if is_authenticated else False
-        user_name = current_user.full_name if is_authenticated else ''
-        
-        navigation = presentation_service.build_navigation(is_authenticated, is_admin, user_name)
-        content = presentation_service.build_index_content(is_authenticated, is_admin, user_name)
-        
-        return render_template('index.html', navigation=navigation, content=content)
+        return render_template('index.html')
     
     @app.route('/register', methods=['GET', 'POST'])
     def register():
@@ -36,12 +37,12 @@ def register_routes(app):
             password_confirm = request.form.get('password_confirm')
             
             if password != password_confirm:
-                error_html = presentation_service.format_error('Пароли не совпадают')
-                return render_template('register.html', error=error_html)
+                flash('Пароли не совпадают', 'error')
+                return render_template('register.html')
             
             if user_service.check_user_exists(email):
-                error_html = presentation_service.format_error('Email уже зарегистрирован')
-                return render_template('register.html', error=error_html)
+                flash('Email уже зарегистрирован', 'error')
+                return render_template('register.html')
             
             user = User(email=email, full_name=full_name, role='user')
             user.set_password(password)
@@ -52,7 +53,7 @@ def register_routes(app):
             login_user(user)
             return redirect(url_for('index'))
         
-        return render_template('register.html', error='')
+        return render_template('register.html')
     
     @app.route('/login', methods=['GET', 'POST'])
     def login():
@@ -66,13 +67,13 @@ def register_routes(app):
             user = User.query.filter_by(email=email).first()
             
             if not user or not user.check_password(password):
-                error_html = presentation_service.format_error('Неверный email или пароль')
-                return render_template('login.html', error=error_html)
+                flash('Неверный email или пароль', 'error')
+                return render_template('login.html')
             
             login_user(user)
             return redirect(url_for('index'))
         
-        return render_template('login.html', error='')
+        return render_template('login.html')
     
     @app.route('/logout')
     @login_required
@@ -83,55 +84,16 @@ def register_routes(app):
     @app.route('/profile')
     @login_required
     def profile():
-        is_admin = current_user.is_admin()
-        user_name = current_user.full_name
-        
-        navigation = presentation_service.build_navigation(True, is_admin, user_name)
-        
         profile_data = library_service.prepare_profile_data(current_user.id)
-        
-        active_borrows_table = presentation_service.build_active_borrows_table(profile_data['active_borrows'])
-        history_table = presentation_service.build_history_table(profile_data['returned_records'])
-        
-        user_ticket_html = ''
-        if current_user.ticket_number:
-            user_ticket_html = f'<p><strong>Номер читательского билета:</strong> {current_user.ticket_number}</p>'
-        
-        message = presentation_service.format_message(request.args.get('message'))
-        error = presentation_service.format_error(request.args.get('error'))
-        
         return render_template('profile.html',
-                             navigation=navigation,
-                             user_name=user_name,
-                             user_email=current_user.email,
-                             user_ticket_html=user_ticket_html,
-                             user_created=current_user.created_at,
-                             active_borrows_table=active_borrows_table,
-                             history_table=history_table,
-                             message=message,
-                             error=error)
+                             active_borrows=profile_data['active_borrows'],
+                             history=profile_data['returned_records'])
 
     @app.route('/search')
     def search_page():
         query = request.args.get('query', '')
-        is_authenticated = current_user.is_authenticated
-        is_admin = current_user.is_admin() if is_authenticated else False
-        user_name = current_user.full_name if is_authenticated else ''
-        
-        navigation = presentation_service.build_navigation(is_authenticated, is_admin, user_name)
-        
         books = library_service.search_books(query=query)
-        search_results = presentation_service.build_search_results(books, query)
-        
-        error = presentation_service.format_error(request.args.get('error'))
-        message = presentation_service.format_message(request.args.get('message'))
-        
-        return render_template('search.html',
-                             navigation=navigation,
-                             query=query,
-                             search_results=search_results,
-                             error=error,
-                             message=message)
+        return render_template('search.html', query=query, books=books)
 
     @app.route('/import-book', methods=['POST'])
     @login_required
@@ -143,7 +105,8 @@ def register_routes(app):
         try:
             book_data = google_books_service.get_book_by_isbn(isbn)
             if not book_data:
-                return redirect(url_for('search_page', error='Книга не найдена'))
+                flash('Книга не найдена', 'error')
+                return redirect(url_for('search_page'))
             
             library_service.create_book(
                 isbn=book_data['isbn'],
@@ -152,20 +115,18 @@ def register_routes(app):
                 author_names=book_data.get('authors', []),
                 genre_names=book_data.get('categories', [])
             )
-            return redirect(url_for('library_page', message='Книга успешно добавлена'))
+            flash('Книга успешно добавлена', 'success')
+            return redirect(url_for('library_page'))
         except library_service.BookAlreadyExists:
-            return redirect(url_for('library_page', error='Книга уже существует в библиотеке'))
+            flash('Книга уже существует в библиотеке', 'error')
+            return redirect(url_for('library_page'))
         except Exception as e:
-            return redirect(url_for('library_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('library_page'))
 
     @app.route('/library')
     @login_required
     def library_page():
-        is_admin = current_user.is_admin()
-        user_name = current_user.full_name
-        
-        navigation = presentation_service.build_navigation(True, is_admin, user_name)
-        
         all_books = library_service.get_books()
         query = request.args.get('query', '')
         status_filter = request.args.get('status', 'all')
@@ -173,32 +134,19 @@ def register_routes(app):
         books = library_service.search_books(query, status_filter)
         stats = library_service.get_library_stats(all_books)
         
-        books_table = presentation_service.build_books_table_for_library(books, is_admin)
-        status_options = presentation_service.build_status_select_options(status_filter)
-        
-        message = presentation_service.format_message(request.args.get('message'))
-        error = presentation_service.format_error(request.args.get('error'))
-        
         return render_template('library.html',
-                             navigation=navigation,
                              total_books=stats['total'],
                              query=query,
-                             status_options=status_options,
+                             status_filter=status_filter,
                              result_count=len(books),
                              available_books=stats['available'],
-                             books_table=books_table,
-                             message=message,
-                             error=error)
+                             books=books)
 
     @app.route('/add-book', methods=['GET', 'POST'])
     @login_required
     @admin_required
     def add_book_page():
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         query = request.args.get('query', '')
-        error_text = None
         
         if request.method == 'POST' and 'isbn' in request.form:
             isbn = request.form.get('isbn')
@@ -209,59 +157,41 @@ def register_routes(app):
             
             try:
                 library_service.create_book(isbn, title, copies, authors, genres)
-                return redirect(url_for('library_page', message='Книга успешно добавлена'))
+                flash('Книга успешно добавлена', 'success')
+                return redirect(url_for('library_page'))
             except Exception as e:
-                error_text = str(e)
+                flash(str(e), 'error')
         
-        google_books_results = ''
+        google_books = []
         if query:
             try:
-                books = google_books_service.search_books(query)
-                google_books_results = presentation_service.build_google_books_results(books, query)
+                google_books = google_books_service.search_books(query)
             except Exception as e:
-                error_text = str(e)
-        
-        error = presentation_service.format_error(error_text)
-        message = presentation_service.format_message(request.args.get('message'))
+                flash(str(e), 'error')
         
         return render_template('add_book.html',
-                             navigation=navigation,
                              query=query,
-                             google_books_results=google_books_results,
-                             error=error,
-                             message=message)
+                             google_books=google_books)
 
     @app.route('/issue-book')
     @login_required
     @admin_required
     def issue_book_page():
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         query = request.args.get('query', '')
         books = library_service.search_books(query=query, status_filter='available')
-        
-        books_table = presentation_service.build_books_table_for_admin(books, query, '/issue-book')
-        
-        return render_template('issue_book.html',
-                             navigation=navigation,
-                             query=query,
-                             books_table=books_table)
+        return render_template('issue_book.html', query=query, books=books)
 
     @app.route('/issue-book/<isbn>', methods=['GET', 'POST'])
     @login_required
     @admin_required
     def issue_book_confirm(isbn):
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         all_books = library_service.get_books()
         book = next((b for b in all_books if b['isbn'] == isbn), None)
         if not book:
-            return redirect(url_for('issue_book_page', error='Книга не найдена'))
+            flash('Книга не найдена', 'error')
+            return redirect(url_for('issue_book_page'))
 
-        user_reservations_table = ''
-        error_text = None
+        user_reservations = []
 
         if request.method == 'POST':
             user_identifier = request.form.get('user_identifier')
@@ -269,27 +199,21 @@ def register_routes(app):
                 user = user_service.find_user_by_identifier(user_identifier)
 
                 if not user:
-                    error_text = 'Читатель не найден'
+                    flash('Читатель не найден', 'error')
                 else:
                     try:
                         record_id = library_service.reserve_book(isbn, user.id)
                         library_service.issue_book(record_id)
-                        return redirect(url_for('management_page', message=f'Книга выдана пользователю {user.full_name}'))
+                        flash(f'Книга выдана пользователю {user.full_name}', 'success')
+                        return redirect(url_for('management_page'))
                     except Exception as e:
-                        error_text = str(e)
+                        flash(str(e), 'error')
                         active = library_service.get_active_borrows(user.id)
                         user_reservations = [r for r in active if r['status'] == 'reserved']
-                        user_reservations_table = presentation_service.build_user_reservations_table(user_reservations)
 
-        error = presentation_service.format_error(error_text)
-        
         return render_template('issue_confirm.html',
-                             navigation=navigation,
-                             book_title=book['title'],
-                             book_isbn=book['isbn'],
-                             book_copies=book['copies'],
-                             user_reservations_table=user_reservations_table,
-                             error=error)
+                             book=book,
+                             user_reservations=user_reservations)
 
     @app.route('/issue-book-from-reservation', methods=['POST'])
     @login_required
@@ -299,9 +223,11 @@ def register_routes(app):
         
         try:
             library_service.issue_book(record_id)
-            return redirect(url_for('management_page', message='Книга выдана'))
+            flash('Книга выдана', 'success')
+            return redirect(url_for('management_page'))
         except Exception as e:
-            return redirect(url_for('management_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('management_page'))
     
     @app.route('/register-user-for-issue', methods=['POST'])
     @login_required
@@ -312,47 +238,42 @@ def register_routes(app):
         email = request.form.get('email')
 
         if user_service.check_user_exists(email):
-            return redirect(url_for('issue_book_confirm', isbn=isbn, error='Пользователь с таким email уже существует'))
+            flash('Пользователь с таким email уже существует', 'error')
+            return redirect(url_for('issue_book_confirm', isbn=isbn))
 
         user, temp_password = user_service.create_reader(email, full_name)
 
         try:
             record_id = library_service.reserve_book(isbn, user.id)
             library_service.issue_book(record_id)
-            return redirect(url_for('management_page', message=f'Новый пользователь зарегистрирован. Пароль: {temp_password}. Книга выдана пользователю {user.full_name}.'))
+            session['new_user_data'] = {
+                'ticket': user.ticket_number,
+                'temp_password': temp_password,
+                'full_name': user.full_name
+            }
+            flash(f'Новый пользователь {user.full_name} зарегистрирован. Книга выдана.', 'success')
+            return redirect(url_for('issue_book_confirm', isbn=isbn))
         except Exception as e:
-            return redirect(url_for('management_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('management_page'))
 
     @app.route('/reserve-book')
     @login_required
     @admin_required
     def reserve_book_page():
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         query = request.args.get('query', '')
         books = library_service.search_books(query=query, status_filter='available')
-        
-        books_table = presentation_service.build_books_table_for_admin(books, query, '/reserve-book')
-        
-        return render_template('reserve_book.html',
-                             navigation=navigation,
-                             query=query,
-                             books_table=books_table)
+        return render_template('reserve_book.html', query=query, books=books)
 
     @app.route('/reserve-book/<isbn>', methods=['GET', 'POST'])
     @login_required
     @admin_required
     def reserve_book_confirm(isbn):
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         all_books = library_service.get_books()
         book = next((b for b in all_books if b['isbn'] == isbn), None)
         if not book:
-            return redirect(url_for('reserve_book_page', error='Книга не найдена'))
-
-        error_text = None
+            flash('Книга не найдена', 'error')
+            return redirect(url_for('reserve_book_page'))
 
         if request.method == 'POST':
             user_identifier = request.form.get('user_identifier')
@@ -360,22 +281,16 @@ def register_routes(app):
                 user = user_service.find_user_by_identifier(user_identifier)
 
                 if not user:
-                    error_text = 'Читатель не найден'
+                    flash('Читатель не найден', 'error')
                 else:
                     try:
                         library_service.reserve_book(isbn, user.id)
-                        return redirect(url_for('management_page', message=f'Книга забронирована для пользователя {user.full_name}'))
+                        flash(f'Книга забронирована для пользователя {user.full_name}', 'success')
+                        return redirect(url_for('management_page'))
                     except Exception as e:
-                        error_text = str(e)
+                        flash(str(e), 'error')
 
-        error = presentation_service.format_error(error_text)
-        
-        return render_template('reserve_confirm.html',
-                             navigation=navigation,
-                             book_title=book['title'],
-                             book_isbn=book['isbn'],
-                             book_copies=book['copies'],
-                             error=error)
+        return render_template('reserve_confirm.html', book=book)
 
     @app.route('/register-user-for-reserve', methods=['POST'])
     @login_required
@@ -386,38 +301,35 @@ def register_routes(app):
         email = request.form.get('email')
 
         if user_service.check_user_exists(email):
-            return redirect(url_for('reserve_book_confirm', isbn=isbn, error='Пользователь с таким email уже существует'))
+            flash('Пользователь с таким email уже существует', 'error')
+            return redirect(url_for('reserve_book_confirm', isbn=isbn))
 
         user, temp_password = user_service.create_reader(email, full_name)
 
         try:
             library_service.reserve_book(isbn, user.id)
-            return redirect(url_for('management_page', message=f'Новый пользователь зарегистрирован. Пароль: {temp_password}. Книга забронирована для {user.full_name}.'))
+            session['new_user_data'] = {
+                'ticket': user.ticket_number,
+                'temp_password': temp_password,
+                'full_name': user.full_name
+            }
+            flash(f'Новый пользователь {user.full_name} зарегистрирован. Книга забронирована.', 'success')
+            return redirect(url_for('reserve_book_confirm', isbn=isbn))
         except Exception as e:
-            return redirect(url_for('management_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('management_page'))
 
     @app.route('/edit-book/<isbn>')
     @login_required
     @admin_required
     def edit_book_page(isbn):
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         all_books = library_service.get_books()
         book = next((b for b in all_books if b['isbn'] == isbn), None)
         if not book:
-            return redirect(url_for('management_page', error='Книга не найдена'))
+            flash('Книга не найдена', 'error')
+            return redirect(url_for('management_page'))
         
-        book_authors = ', '.join(book['authors']) if book['authors'] else ''
-        book_genres = ', '.join(book['genres']) if book['genres'] else ''
-        
-        return render_template('edit_book.html',
-                             navigation=navigation,
-                             book_title=book['title'],
-                             book_isbn=book['isbn'],
-                             book_copies=book['copies'],
-                             book_authors=book_authors,
-                             book_genres=book_genres)
+        return render_template('edit_book.html', book=book)
 
     @app.route('/update-book', methods=['POST'])
     @login_required
@@ -431,9 +343,11 @@ def register_routes(app):
         
         try:
             library_service.update_book(isbn, title, copies, authors, genres)
-            return redirect(url_for('library_page', message='Книга успешно обновлена'))
+            flash('Книга успешно обновлена', 'success')
+            return redirect(url_for('library_page'))
         except Exception as e:
-            return redirect(url_for('library_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('library_page'))
 
     @app.route('/delete-book', methods=['POST'])
     @login_required
@@ -442,9 +356,11 @@ def register_routes(app):
         isbn = request.form.get('isbn')
         try:
             library_service.delete_book(isbn)
-            return redirect(url_for('library_page', message='Книга успешно удалена'))
+            flash('Книга успешно удалена', 'success')
+            return redirect(url_for('library_page'))
         except Exception as e:
-            return redirect(url_for('library_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('library_page'))
 
     @app.route('/mark-returned', methods=['POST'])
     @login_required
@@ -455,9 +371,11 @@ def register_routes(app):
         
         try:
             library_service.return_book_by_record(record_id, return_date_str)
-            return redirect(url_for('management_page', message='Книга отмечена как возвращенная'))
+            flash('Книга отмечена как возвращенная', 'success')
+            return redirect(url_for('management_page'))
         except Exception as e:
-            return redirect(url_for('management_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('management_page'))
     
     @app.route('/cancel-issued', methods=['POST'])
     @login_required
@@ -467,9 +385,11 @@ def register_routes(app):
         
         try:
             library_service.cancel_issued_book(record_id)
-            return redirect(url_for('management_page', message='Выдача отменена, книга возвращена в фонд'))
+            flash('Выдача отменена, книга возвращена в фонд', 'success')
+            return redirect(url_for('management_page'))
         except Exception as e:
-            return redirect(url_for('management_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('management_page'))
 
     @app.route('/reserve-book-user', methods=['POST'])
     @login_required
@@ -479,9 +399,11 @@ def register_routes(app):
 
         try:
             library_service.reserve_book(isbn, user_id)
-            return redirect(url_for('profile', message='Книга успешно зарезервирована'))
+            flash('Книга успешно зарезервирована', 'success')
+            return redirect(url_for('profile'))
         except Exception as e:
-            return redirect(url_for('profile', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('profile'))
 
     @app.route('/cancel-reservation', methods=['POST'])
     @login_required
@@ -491,17 +413,16 @@ def register_routes(app):
 
         try:
             library_service.cancel_reservation(record_id)
-            return redirect(url_for('management_page', message='Резервация отменена'))
+            flash('Резервация отменена', 'success')
+            return redirect(url_for('management_page'))
         except Exception as e:
-            return redirect(url_for('management_page', error=str(e)))
+            flash(str(e), 'error')
+            return redirect(url_for('management_page'))
 
     @app.route('/management')
     @login_required
     @admin_required
     def management_page():
-        user_name = current_user.full_name
-        navigation = presentation_service.build_navigation(True, True, user_name)
-        
         status_filter = request.args.get('status', 'all')
         user_email = request.args.get('user_email', '')
         user_ticket = request.args.get('user_ticket', '')
@@ -511,32 +432,24 @@ def register_routes(app):
             records = library_service.filter_records(all_records, status_filter, user_email, user_ticket)
         except Exception as e:
             records = []
-            error_text = str(e)
-        else:
-            error_text = request.args.get('error')
-        
-        status_options = presentation_service.build_management_status_options(status_filter)
-        records_table = presentation_service.build_management_records_table(records)
-        
-        message = presentation_service.format_message(request.args.get('message'))
-        error = presentation_service.format_error(error_text)
+            flash(str(e), 'error')
         
         return render_template('management.html',
-                             navigation=navigation,
+                             status_filter=status_filter,
                              user_email=user_email,
                              user_ticket=user_ticket,
-                             status_options=status_options,
-                             records_count=len(records),
-                             records_table=records_table,
-                             message=message,
-                             error=error)
+                             records=records)
 
     # API endpoints
     @app.route('/api/v1/books', methods=['GET'])
+    @login_required
+    @admin_api_required
     def get_books():
         return jsonify({'books': library_service.get_books()}), 200
 
     @app.route('/api/v1/books', methods=['POST'])
+    @login_required
+    @admin_api_required
     def create_book():
         try:
             data = request.get_json()
@@ -555,6 +468,8 @@ def register_routes(app):
             return jsonify({'error': 'Server error'}), 500
 
     @app.route('/api/v1/books/<isbn>', methods=['PUT'])
+    @login_required
+    @admin_api_required
     def update_book_api(isbn):
         try:
             data = request.get_json()
@@ -572,6 +487,8 @@ def register_routes(app):
             return jsonify({'error': 'Server error'}), 500
 
     @app.route('/api/v1/books/<isbn>', methods=['DELETE'])
+    @login_required
+    @admin_api_required
     def delete_book_api(isbn):
         try:
             library_service.delete_book(isbn)
@@ -584,25 +501,51 @@ def register_routes(app):
             return jsonify({'error': 'Server error'}), 500
 
     @app.route('/api/v1/borrow-history', methods=['GET'])
+    @login_required
     def get_borrow_history():
         try:
             isbn = request.args.get('isbn')
             user_id = request.args.get('user_id')
+            
+            # Обычный пользователь может видеть только свою историю
+            if not current_user.is_admin():
+                if user_id and int(user_id) != current_user.id:
+                    return jsonify({'error': 'Forbidden'}), 403
+                user_id = current_user.id
+            else:
+                # Если админ не указал user_id, показать его собственную историю
+                if not user_id:
+                    user_id = current_user.id
+            
             history = library_service.get_borrow_history(isbn, user_id)
             return jsonify({'history': history}), 200
         except Exception:
             return jsonify({'error': 'Server error'}), 500
 
     @app.route('/api/v1/active-borrows', methods=['GET'])
+    @login_required
     def get_active_borrows():
         try:
             user_id = request.args.get('user_id')
+            
+            # Обычный пользователь может видеть только свои данные
+            if not current_user.is_admin():
+                if user_id and int(user_id) != current_user.id:
+                    return jsonify({'error': 'Forbidden'}), 403
+                user_id = current_user.id
+            else:
+                # Если админ не указал user_id, показать его собственные бронирования
+                if not user_id:
+                    user_id = current_user.id
+
             active_borrows = library_service.get_active_borrows(user_id)
             return jsonify({'active_borrows': active_borrows}), 200
         except Exception:
             return jsonify({'error': 'Server error'}), 500
 
     @app.route('/api/v1/search/google-books', methods=['GET'])
+    @login_required
+    @admin_api_required
     def search_google_books():
         try:
             query = request.args.get('query', '')
@@ -617,6 +560,8 @@ def register_routes(app):
             return jsonify({'error': str(e)}), 500
 
     @app.route('/api/v1/search/google-books/isbn/<isbn>', methods=['GET'])
+    @login_required
+    @admin_api_required
     def get_google_book_by_isbn(isbn):
         try:
             book = google_books_service.get_book_by_isbn(isbn)
@@ -627,6 +572,8 @@ def register_routes(app):
             return jsonify({'error': str(e)}), 500
 
     @app.route('/api/v1/import/google-books', methods=['POST'])
+    @login_required
+    @admin_api_required
     def import_from_google_books():
         try:
             data = request.get_json()
