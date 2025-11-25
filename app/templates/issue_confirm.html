@@ -7,39 +7,92 @@
 <body>
     <h1>Выдать книгу</h1>
 
-    {{ navigation|safe }}
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/library">Библиотека</a> |
+        <a href="/add-book">Добавить</a> |
+        <a href="/issue-book">Выдать</a> |
+        <a href="/reserve-book">Забронировать</a> |
+        <a href="/management">Управление</a> |
+        <a href="/logout">Выйти</a>
+    </nav>
 
     <hr>
 
     <h2>Информация о книге</h2>
-    <p><strong>Название:</strong> {{ book_title }}</p>
-    <p><strong>ISBN:</strong> {{ book_isbn }}</p>
-    <p><strong>Доступно:</strong> {{ book_copies }}</p>
+    <p><strong>Название:</strong> {{ book.title }}</p>
+    <p><strong>ISBN:</strong> {{ book.isbn }}</p>
+    <p><strong>Доступно:</strong> {{ book.copies }}</p>
 
     <hr>
 
     <h2>Найти читателя</h2>
-    <form method="POST" action="/issue-book/{{ book_isbn }}">
+    <form method="POST" action="/issue-book/{{ book.isbn }}">
         <label>Email или номер читательского билета:</label><br>
         <input type="text" name="user_identifier" required><br><br>
         <button type="submit">Выдать книгу</button>
     </form>
     
-    {{ user_reservations_table|safe }}
+    {% if user_reservations %}
+    <hr>
+    <h3>Зарезервированные книги этого пользователя</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Книга</th>
+                <th>ISBN</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for res in user_reservations %}
+            <tr>
+                <td>{{ res.book_title }}</td>
+                <td>{{ res.book_isbn }}</td>
+                <td>{{ res.status }}</td>
+                <td>
+                    <form method="POST" action="/issue-book-from-reservation" style="display: inline;">
+                        <input type="hidden" name="record_id" value="{{ res.id }}">
+                        <button type="submit">Выдать</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
 
     <hr>
 
     <h2>Или зарегистрировать нового читателя</h2>
     <form method="POST" action="/register-user-for-issue">
-        <input type="hidden" name="isbn" value="{{ book_isbn }}">
+        <input type="hidden" name="isbn" value="{{ book.isbn }}">
         <label>ФИО:</label><br>
         <input type="text" name="full_name" required><br><br>
         <label>Email:</label><br>
         <input type="email" name="email" required><br><br>
         <button type="submit">Зарегистрировать и выдать книгу</button>
     </form>
-    <p>Пароль не требуется. Пользователь сможет восстановить доступ по email позже.</p>
+    <p>Пароль будет сгенерирован автоматически.</p>
 
-    {{ error|safe }}
+    {% if session.get('new_user_data') %}
+    <hr>
+    <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 5px;">
+        <h3 style="margin-top: 0;">Учетные данные нового пользователя</h3>
+        <p><strong>Билет:</strong> {{ session['new_user_data']['ticket'] }}</p>
+        <p><strong>Пароль:</strong> <code style="background-color: #f0f0f0; padding: 2px 6px;">{{ session['new_user_data']['temp_password'] }}</code></p>
+        <p><em>Сообщите эти данные пользователю. Пароль исчезнет при обновлении страницы.</em></p>
+    </div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'green' if category == 'success' else 'red' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>
