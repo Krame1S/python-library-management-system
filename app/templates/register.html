@@ -35,6 +35,13 @@
     
     <p>Уже есть аккаунт? <a href="/login">Войти</a></p>
     
-    {{ error|safe }}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <hr>
+            {% for category, message in messages %}
+                <p style="color: {{ 'red' if category == 'error' else 'green' }};">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 </body>
 </html>
