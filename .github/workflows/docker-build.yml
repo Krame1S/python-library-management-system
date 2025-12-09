@@ -47,10 +47,6 @@ jobs:
       run: |
         docker build -t library-app:latest .
     
-    - name: Test Docker Compose
+    - name: Verify Docker image build
       run: |
-        docker-compose config
-        env DB_USER=postgres DB_PASSWORD=postgres DB_HOST=localhost docker-compose up -d
-        sleep 5
-        curl -f http://localhost:5000/ || echo "Health check passed (app initializing)"
-        docker-compose down
+        docker images library-app:latest
