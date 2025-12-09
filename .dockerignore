@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.example
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+instance/
+myenv/
+.venv
+venv/
+.DS_Store
+README.md
+.github
